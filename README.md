@@ -3,7 +3,7 @@ A python library to process images uploaded to S3 using lambda services
 ## Pre-Requisities
  - AWS CLI Installed and Configured
  -- For instructions to install `aws` cli refer [here](https://github.com/miztiik/AWS-Demos/tree/master/How-To/setup-aws-cli)
-- IAM Lambda Service Role & Permissions
+- IAM Lambda Service Role: `serverless-image-processor`
   - Permissions to `AWSS3FullAccess`
   - Permissions to `AWSLambdaExecute`
 - Source S3 Bucket : `serverless-image-processor`
@@ -13,6 +13,7 @@ A python library to process images uploaded to S3 using lambda services
     - `profile`
     - `thumbnail`
  
+_Note : You might not be able to use the same bucket names, so choose your own bucket names and use accordingly_
 
 ### Create Python Work Environment
 Install the Boto3 package if it not there already - For packaging to lambda it is not necessary as it is provided by AWS by default, so we can install it outside our virtual environment. _If `pip` is not found install by following the instructions [here](https://github.com/miztiik/AWS-Demos/tree/master/How-To/setup-aws-cli)_
@@ -30,6 +31,18 @@ pip install python-resize-image
 pip freeze > requirements.txt
 ```
 
+#### Setup Environment Variables
+Set up environment variables describing the associated resources,
+```sh
+# Change to your own unique S3 bucket name:
+awsRegion=ap-south-1
+srcBucket=serverless-image-processor
+destBucket=processed-image-data
+function=serverless-image-processor
+lambda_exec_iam_role_name=${function}-role
+lambda_exec_iam_role_name_arn=$(aws iam get-role --role-name ${lambda_exec_iam_role_name} --output text --query 'Role.Arn')
+accountID=$(aws sts get-caller-identity --output text --query 'Account')
+```
 ### Lets Package the bin for lambda
 ```sh
 cd /var/serverless-image-processor/lib/python2.7/site-packages
@@ -131,6 +144,21 @@ https://s3.ap-south-1.amazonaws.com/lambda-image-resizer-source-code/serverless-
 ```
 
 Copy the url `https://s3.ap-south-1.amazonaws.com/lambda-image-resizer-source-code/serverless-image-processor.zip` from s3 and update the lambda function configuration
+
+### Create the Lambda Function
+```sh
+aws lambda create-function \
+--description "This function processess newly uploaded s3 images and uploads them to destination bucket" \
+--region ${awsRegion} \
+--function-name serverless-image-processor \
+--code S3Bucket=lambda-image-resizer-source-code,S3Key=serverless-image-processor.zip \
+--role ${lambda_exec_iam_role_name_arn} \
+--handler serverless-image-processor.handler \
+--mode event \
+--runtime python2.7 \
+--timeout 10 \
+--memory-size 128
+```
 
 ### Test the function
 Go ahead and upload an object to your S3 source bucket and you should be able to find smaller images in the destination bucket after few seconds. _Allow few seconds for the lambda function to run:)_
