@@ -46,7 +46,7 @@ accountID=$(aws sts get-caller-identity --output text --query 'Account')
 ### Lets Package the bin for lambda
 ```sh
 cd /var/serverless-image-processor/lib/python2.7/site-packages
-zip -r9 /var/serverless-image-processor.zip *
+zip -r9 /var/${function}.zip *
 ```
 
 ### Image Resizing Code
@@ -115,15 +115,17 @@ def handler(event, context):
         upload_path_thumbnail = '/tmp/thumbnail-{}'.format(key)
  
         s3Client.download_file(globalVars['S3-SourceBucketName'], key, download_path)
- 
+        fname=key.rsplit('.', 1)[0]
+        fextension=key.rsplit('.', 1)[1]
+
         image_cover(download_path, upload_path_cover)
-        s3Client.upload_file(upload_path_cover, '{bucket_name}'.format(bucket_name=globalVars['S3-DestBucketName']), 'cover/{key}-cover'.format(key=key))
+        s3Client.upload_file(upload_path_cover, '{bucket_name}'.format(bucket_name=globalVars['S3-DestBucketName']), 'cover/{0}-cover.{1}'.format(fname,fextension))
  
         image_profile(download_path, upload_path_cover)
-        s3Client.upload_file(upload_path_cover, '{bucket_name}'.format(bucket_name=globalVars['S3-DestBucketName']), 'profile/{key}-profile'.format(key=key))
+        s3Client.upload_file(upload_path_profile, '{bucket_name}'.format(bucket_name=globalVars['S3-DestBucketName']), 'profile/{0}-profile.{1}'.format(fname,fextension))
  
         image_thumbnail(download_path, upload_path_thumbnail)
-        s3Client.upload_file(upload_path_thumbnail, '{bucket_name}'.format(bucket_name=globalVars['S3-DestBucketName']), 'thumbnail/{key}-thumbnail'.format(key=key))
+        s3Client.upload_file(upload_path_thumbnail, '{bucket_name}'.format(bucket_name=globalVars['S3-DestBucketName']), 'thumbnail/{0}-thumbnail.{1}'.format(fname,fextension))
     return key
 EOF
 ```
@@ -138,7 +140,7 @@ zip -g /var/serverless-image-processor.zip image-resizer.py
 
 #### Upload zip file to S3 bucket
 ```sh
-aws s3 cp /var/serverless-image-processor.zip s3://lambda-image-resizer-source-code
+aws s3 cp /var/${function}.zip s3://lambda-image-resizer-source-code
 ##### The URI for the s3 object should be something like,
 https://s3.ap-south-1.amazonaws.com/lambda-image-resizer-source-code/serverless-image-processor.zip
 ```
@@ -146,18 +148,51 @@ https://s3.ap-south-1.amazonaws.com/lambda-image-resizer-source-code/serverless-
 Copy the url `https://s3.ap-south-1.amazonaws.com/lambda-image-resizer-source-code/serverless-image-processor.zip` from s3 and update the lambda function configuration
 
 ### Create the Lambda Function
+You may find it easier to do the below steps from the GUI console, But be sure to provide the same values,
+
 ```sh
 aws lambda create-function \
 --description "This function processess newly uploaded s3 images and uploads them to destination bucket" \
 --region ${awsRegion} \
---function-name serverless-image-processor \
---code S3Bucket=lambda-image-resizer-source-code,S3Key=serverless-image-processor.zip \
+--function-name ${function} \
+--code S3Bucket=lambda-image-resizer-source-code,S3Key=${function}.zip \
 --role ${lambda_exec_iam_role_name_arn} \
---handler serverless-image-processor.handler \
---mode event \
+--handler ${function}.handler \
 --runtime python2.7 \
 --timeout 10 \
 --memory-size 128
+```
+
+#### Add Lambda Permissions to receive trigger notifications
+```sh
+aws lambda add-permission \
+--function-name ${function} \
+--region ${awsRegion} \
+--statement-id some-unique-id \
+--action "lambda:InvokeFunction" \
+--principal s3.amazonaws.com \
+--source-arn arn:aws:s3:::${srcBucket} \
+--source-account ${accountID} \
+```
+
+#### Create S3 Notifications to trigger Lambda
+```sh
+# Get the Lambda ARN
+lambda_function_arn=$(aws lambda get-function-configuration \
+  --function-name "${function}" \
+  --output text \
+  --query 'FunctionArn'
+)
+
+# Set the notification in S3 Bucket
+aws s3api put-bucket-notification \
+  --bucket ${srcBucket} \
+  --notification-configuration '{
+    "CloudFunctionConfiguration": {
+      "CloudFunction": "'${lambda_function_arn}'",
+      "Event": "s3:ObjectCreated:*"
+    }
+  }'
 ```
 
 ### Test the function
