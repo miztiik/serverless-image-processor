@@ -7,11 +7,11 @@ A python library to process images uploaded to S3 using lambda services
  -- Permissions to `AWSS3FullAccess`
  -- Permissions to `AWSLambdaExecute`
 - Source S3 Bucket : `serverless-image-processor`
- - Destination S3 Bucket : `processed-image-data`
-  -- Three Sub-Directories under destination bucket
-   -- `cover`
-   -- `profile`
-   -- `thumbnail`
+- Destination S3 Bucket : `processed-image-data`
+ -- Three Sub-Directories under destination bucket
+  - `cover`
+  - `profile`
+  - `thumbnail`
  
 
 ### Create Python Work Environment
