@@ -4,14 +4,14 @@ A python library to process images uploaded to S3 using lambda services
  - AWS CLI Installed and Configured
  -- For instructions to install `aws` cli refer [here](https://github.com/miztiik/AWS-Demos/tree/master/How-To/setup-aws-cli)
 - IAM Lambda Service Role & Permissions
- -- Permissions to `AWSS3FullAccess`
- -- Permissions to `AWSLambdaExecute`
+  - Permissions to `AWSS3FullAccess`
+  - Permissions to `AWSLambdaExecute`
 - Source S3 Bucket : `serverless-image-processor`
 - Destination S3 Bucket : `processed-image-data`
- -- Three Sub-Directories under destination bucket
-  - `cover`
-  - `profile`
-  - `thumbnail`
+  - Three Sub-Directories under destination bucket
+    - `cover`
+    - `profile`
+    - `thumbnail`
  
 
 ### Create Python Work Environment
