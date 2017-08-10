@@ -17,10 +17,24 @@ _Note : You might not be able to use the same bucket names, so choose your own b
 
 ### Create Python Work Environment
 Install the Boto3 package if it not there already - For packaging to lambda it is not necessary as it is provided by AWS by default, so we can install it outside our virtual environment. _If `pip` is not found install by following the instructions [here](https://github.com/miztiik/AWS-Demos/tree/master/How-To/setup-aws-cli)_
+
+#### Setup Environment Variables
+Set up environment variables describing the associated resources,
+```sh
+# Change to your own unique S3 bucket name:
+awsRegion=ap-south-1
+srcBucket=serverless-image-processor
+destBucket=processed-image-data
+funcName=serverless-image-processor
+lambda_exec_iam_role_name=${function}-role
+lambda_exec_iam_role_name_arn=$(aws iam get-role --role-name ${lambda_exec_iam_role_name} --output text --query 'Role.Arn')
+accountID=$(aws sts get-caller-identity --output text --query 'Account')
+```
+
 ```sh
 pip install boto3
-virtualenv /var/serverless-image-processor
-cd /var/serverless-image-processor
+virtualenv /var/${funcName}
+cd /var/${funcName}
 source bin/activate
 pip install --upgrade pip
 ```
@@ -31,27 +45,15 @@ pip install python-resize-image
 pip freeze > requirements.txt
 ```
 
-#### Setup Environment Variables
-Set up environment variables describing the associated resources,
-```sh
-# Change to your own unique S3 bucket name:
-awsRegion=ap-south-1
-srcBucket=serverless-image-processor
-destBucket=processed-image-data
-function=serverless-image-processor
-lambda_exec_iam_role_name=${function}-role
-lambda_exec_iam_role_name_arn=$(aws iam get-role --role-name ${lambda_exec_iam_role_name} --output text --query 'Role.Arn')
-accountID=$(aws sts get-caller-identity --output text --query 'Account')
-```
 ### Lets Package the bin for lambda
 ```sh
-cd /var/serverless-image-processor/lib/python2.7/site-packages
-zip -r9 /var/${function}.zip *
+cd /var/${funcName}/lib/python2.7/site-packages
+zip -r9 /var/${funcName}.zip *
 ```
 
 ### Image Resizing Code
 ```sh
-cat > /var/serverless-image-processor/image-resizer.py << "EOF"
+cat > /var/${funcName}/image-resizer.py << "EOF"
 from __future__ import print_function
 
 import boto3
@@ -132,8 +134,8 @@ EOF
 
 ### Add our `resizer.py` to the zip file
 ```sh
-cd /var/serverless-image-processor
-zip -g /var/serverless-image-processor.zip image-resizer.py
+cd /var/${funcName}
+zip -g /var/${funcName}.zip image-resizer.py
 ```
 
 
@@ -154,10 +156,10 @@ You may find it easier to do the below steps from the GUI console, But be sure t
 aws lambda create-function \
 --description "This function processess newly uploaded s3 images and uploads them to destination bucket" \
 --region ${awsRegion} \
---function-name ${function} \
---code S3Bucket=lambda-image-resizer-source-code,S3Key=${function}.zip \
+--function-name ${funcName} \
+--code S3Bucket=lambda-image-resizer-source-code,S3Key=${funcName}.zip \
 --role ${lambda_exec_iam_role_name_arn} \
---handler ${function}.handler \
+--handler image-resizer.handler \
 --runtime python2.7 \
 --timeout 10 \
 --memory-size 128
@@ -166,7 +168,7 @@ aws lambda create-function \
 #### Add Lambda Permissions to receive trigger notifications
 ```sh
 aws lambda add-permission \
---function-name ${function} \
+--function-name ${funcName} \
 --region ${awsRegion} \
 --statement-id some-unique-id \
 --action "lambda:InvokeFunction" \
@@ -179,7 +181,7 @@ aws lambda add-permission \
 ```sh
 # Get the Lambda ARN
 lambda_function_arn=$(aws lambda get-function-configuration \
-  --function-name "${function}" \
+  --function-name "${funcName}" \
   --output text \
   --query 'FunctionArn'
 )
