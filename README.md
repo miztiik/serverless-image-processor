@@ -1,6 +1,6 @@
 # Serverless-image-processor
 A python library to process images uploaded to S3 using lambda services. When a user uploads an image to S3 bucket, SNS notifications from S3 bucket will invoke the lambda function. The object is picked from the source bucket, processed and uploaded to destination buckets based on size.
-[Fig 1 : Valaxy-Serverless-Image-Processor](https://raw.githubusercontent.com/miztiik/serverless-image-processor/master/img/Valaxy-Serverless-Image-Processor.png)
+![Fig 1 : Valaxy-Serverless-Image-Processor](https://raw.githubusercontent.com/miztiik/serverless-image-processor/master/img/Valaxy-Serverless-Image-Processor.png)
 ## Pre-Requisities
  - AWS CLI Installed and Configured
  -- For instructions to install `aws` cli refer [here](https://github.com/miztiik/AWS-Demos/tree/master/How-To/setup-aws-cli)
