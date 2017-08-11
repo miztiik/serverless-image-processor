@@ -26,7 +26,7 @@ awsRegion=ap-south-1
 srcBucket=serverless-image-processor
 destBucket=processed-image-data
 funcName=serverless-image-processor
-lambda_exec_iam_role_name=${function}-role
+lambda_exec_iam_role_name=${funcName}-role
 lambda_exec_iam_role_name_arn=$(aws iam get-role --role-name ${lambda_exec_iam_role_name} --output text --query 'Role.Arn')
 accountID=$(aws sts get-caller-identity --output text --query 'Account')
 ```
@@ -52,6 +52,7 @@ zip -r9 /var/${funcName}.zip *
 ```
 
 ### Image Resizing Code
+The source, destination buckets needs to be updated to **your bucket names**
 ```sh
 cat > /var/${funcName}/image-resizer.py << "EOF"
 from __future__ import print_function
@@ -65,8 +66,6 @@ from PIL import Image
 import PIL.Image
 from resizeimage import resizeimage
 
-
-
 # Set the global variables
 
 import boto3
@@ -76,9 +75,9 @@ globalVars['REGION_NAME']           = "ap-south-1"
 globalVars['tagName']               = "valaxy-lambda-demo"
 globalVars['S3-SourceBucketName']   = "serverless-image-processor"
 globalVars['S3-DestBucketName']     = "processed-image-data"
-globalVars['ImgCoverSize']          = [200, 150]
+globalVars['ImgCoverSize']          = [250, 250]
 globalVars['ImgProfileSize']        = [200, 200]
-globalVars['ImgThumbnailSize']      = [250, 250]
+globalVars['ImgThumbnailSize']      = [200, 150]
 
 s3Client = boto3.client('s3')
 
@@ -93,18 +92,18 @@ def image_cover(image_source_path, resized_cover_path):
 """
 Create the profile sized image
 """
-def image_profile(image_source_path, resized_cover_path):
+def image_profile(image_source_path, resized_profile_path):
     with Image.open(image_source_path) as image:
         profile = resizeimage.resize_cover(image, globalVars['ImgProfileSize'])
-        profile.save(resized_cover_path, image.format)
+        profile.save(resized_profile_path, image.format)
  
 """
-Create the thumbnai sized image
+Create the thumbnail sized image
 """
-def image_thumbnail(image_source_path, resized_cover_path):
+def image_thumbnail(image_source_path, resized_thumbnail_path):
     with Image.open(image_source_path) as image:
         thumbnail = resizeimage.resize_thumbnail(image, globalVars['ImgThumbnailSize'])
-        thumbnail.save(resized_cover_path, image.format)
+        thumbnail.save(resized_thumbnail_path, image.format)
  
  
 def handler(event, context):
@@ -121,13 +120,13 @@ def handler(event, context):
         fextension=key.rsplit('.', 1)[1]
 
         image_cover(download_path, upload_path_cover)
-        s3Client.upload_file(upload_path_cover, '{bucket_name}'.format(bucket_name=globalVars['S3-DestBucketName']), 'cover/{0}-cover.{1}'.format(fname,fextension))
+        s3Client.upload_file(upload_path_cover, globalVars['S3-DestBucketName'], 'cover/{0}-cover.{1}'.format(fname,fextension))
  
-        image_profile(download_path, upload_path_cover)
-        s3Client.upload_file(upload_path_profile, '{bucket_name}'.format(bucket_name=globalVars['S3-DestBucketName']), 'profile/{0}-profile.{1}'.format(fname,fextension))
+        image_profile(download_path, upload_path_profile)
+        s3Client.upload_file(upload_path_profile, globalVars['S3-DestBucketName'], 'profile/{0}-profile.{1}'.format(fname,fextension))
  
         image_thumbnail(download_path, upload_path_thumbnail)
-        s3Client.upload_file(upload_path_thumbnail, '{bucket_name}'.format(bucket_name=globalVars['S3-DestBucketName']), 'thumbnail/{0}-thumbnail.{1}'.format(fname,fextension))
+        s3Client.upload_file(upload_path_thumbnail, globalVars['S3-DestBucketName'], 'thumbnail/{0}-thumbnail.{1}'.format(fname,fextension))
     return key
 EOF
 ```
@@ -174,7 +173,7 @@ aws lambda add-permission \
 --action "lambda:InvokeFunction" \
 --principal s3.amazonaws.com \
 --source-arn arn:aws:s3:::${srcBucket} \
---source-account ${accountID} \
+--source-account ${accountID} 
 ```
 
 #### Create S3 Notifications to trigger Lambda
