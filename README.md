@@ -137,11 +137,9 @@ cd /var/${funcName}
 zip -g /var/${funcName}.zip image-resizer.py
 ```
 
-
-
 #### Upload zip file to S3 bucket
 ```sh
-aws s3 cp /var/${function}.zip s3://lambda-image-resizer-source-code
+aws s3 cp /var/${funcName}.zip s3://lambda-image-resizer-source-code
 ##### The URI for the s3 object should be something like,
 https://s3.ap-south-1.amazonaws.com/lambda-image-resizer-source-code/serverless-image-processor.zip
 ```
