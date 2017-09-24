@@ -16,6 +16,7 @@ A python library to process images uploaded to S3 using lambda services. When a 
  
 _Note : You might not be able to use the same bucket names, so choose your own bucket names and use accordingly_
 
+
 ### Create Python Work Environment
 Install the Boto3 package if it not there already - For packaging to lambda it is not necessary as it is provided by AWS by default, so we can install it outside our virtual environment. _If `pip` is not found install by following the instructions [here](https://github.com/miztiik/AWS-Demos/tree/master/How-To/setup-aws-cli)_
 
@@ -32,8 +33,16 @@ lambda_exec_iam_role_name_arn=$(aws iam get-role --role-name ${lambda_exec_iam_r
 accountID=$(aws sts get-caller-identity --output text --query 'Account')
 ```
 
+
+# Setup the AWS bash profile
 ```sh
-pip install boto3
+export PATH=~/.local/bin:$PATH
+source ~/.bash_profile
+```
+
+```sh
+yum -y install zip
+pip install boto3 virtualenv
 virtualenv /var/${funcName}
 cd /var/${funcName}
 source bin/activate
@@ -181,6 +190,7 @@ aws lambda add-permission \
 lambda_function_arn=$(aws lambda get-function-configuration \
   --function-name "${funcName}" \
   --output text \
+  --region ${awsRegion} \
   --query 'FunctionArn'
 )
 

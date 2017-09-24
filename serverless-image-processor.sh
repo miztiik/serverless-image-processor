@@ -10,7 +10,10 @@ lambda_exec_iam_role_name=${funcName}-role
 lambda_exec_iam_role_name_arn=$(aws iam get-role --role-name ${lambda_exec_iam_role_name} --output text --query 'Role.Arn')
 accountID=$(aws sts get-caller-identity --output text --query 'Account')
 
-pip install boto3
+export PATH=~/.local/bin:$PATH
+source ~/.bash_profile
+yum -y install zip
+pip install boto3 virtualenv
 virtualenv /var/${funcName}
 cd /var/${funcName}
 source bin/activate
@@ -135,6 +138,7 @@ aws lambda add-permission \
 lambda_function_arn=$(aws lambda get-function-configuration \
   --function-name "${funcName}" \
   --output text \
+  --region ${awsRegion} \
   --query 'FunctionArn'
 )
 
