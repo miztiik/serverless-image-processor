@@ -21,7 +21,9 @@ _Note : You might not be able to use the same bucket names, so choose your own b
 Install the Boto3 package if it not there already - For packaging to lambda it is not necessary as it is provided by AWS by default, so we can install it outside our virtual environment. _If `pip` is not found install by following the instructions [here](https://github.com/miztiik/AWS-Demos/tree/master/How-To/setup-aws-cli)_
 
 #### Setup Environment Variables
+
 Set up environment variables describing the associated resources,
+
 ```sh
 # Change to your own unique S3 bucket name:
 awsRegion=ap-south-1
@@ -33,8 +35,8 @@ lambda_exec_iam_role_name_arn=$(aws iam get-role --role-name ${lambda_exec_iam_r
 accountID=$(aws sts get-caller-identity --output text --query 'Account')
 ```
 
+## Setup the AWS bash profile
 
-# Setup the AWS bash profile
 ```sh
 export PATH=~/.local/bin:$PATH
 source ~/.bash_profile
@@ -48,7 +50,9 @@ cd /var/${funcName}
 source bin/activate
 pip install --upgrade pip
 ```
+
 We will be using the python `Pillow` package for doing the image processing.
+
 ```sh
 pip install Pillow
 pip install python-resize-image
@@ -56,13 +60,16 @@ pip freeze > requirements.txt
 ```
 
 ### Lets Package the bin for lambda
+
 ```sh
 cd /var/${funcName}/lib/python2.7/site-packages
 zip -r9 /var/${funcName}.zip *
 ```
 
 ### Image Resizing Code
+
 The source, destination buckets needs to be updated to **your bucket names**
+
 ```sh
 cat > /var/${funcName}/image-resizer.py << "EOF"
 from __future__ import print_function
@@ -114,8 +121,7 @@ def image_thumbnail(image_source_path, resized_thumbnail_path):
     with Image.open(image_source_path) as image:
         thumbnail = resizeimage.resize_thumbnail(image, globalVars['ImgThumbnailSize'])
         thumbnail.save(resized_thumbnail_path, image.format)
- 
- 
+
 def handler(event, context):
     for record in event['Records']:
         bucket = record['s3']['bucket']['name']
@@ -124,17 +130,17 @@ def handler(event, context):
         upload_path_cover = '/tmp/cover-{}'.format(key)
         upload_path_profile = '/tmp/profile-{}'.format(key)
         upload_path_thumbnail = '/tmp/thumbnail-{}'.format(key)
- 
+
         s3Client.download_file(globalVars['S3-SourceBucketName'], key, download_path)
         fname=key.rsplit('.', 1)[0]
         fextension=key.rsplit('.', 1)[1]
 
         image_cover(download_path, upload_path_cover)
         s3Client.upload_file(upload_path_cover, globalVars['S3-DestBucketName'], 'cover/{0}-cover.{1}'.format(fname,fextension))
- 
+
         image_profile(download_path, upload_path_profile)
         s3Client.upload_file(upload_path_profile, globalVars['S3-DestBucketName'], 'profile/{0}-profile.{1}'.format(fname,fextension))
- 
+
         image_thumbnail(download_path, upload_path_thumbnail)
         s3Client.upload_file(upload_path_thumbnail, globalVars['S3-DestBucketName'], 'thumbnail/{0}-thumbnail.{1}'.format(fname,fextension))
     return key
@@ -142,12 +148,14 @@ EOF
 ```
 
 ### Add our `resizer.py` to the zip file
+
 ```sh
 cd /var/${funcName}
 zip -g /var/${funcName}.zip image-resizer.py
 ```
 
 #### Upload zip file to S3 bucket
+
 ```sh
 aws s3 cp /var/${funcName}.zip s3://lambda-image-resizer-source-code
 ##### The URI for the s3 object should be something like,
@@ -157,6 +165,7 @@ https://s3.ap-south-1.amazonaws.com/lambda-image-resizer-source-code/serverless-
 Copy the url `https://s3.ap-south-1.amazonaws.com/lambda-image-resizer-source-code/serverless-image-processor.zip` from s3 and update the lambda function configuration
 
 ### Create the Lambda Function
+
 You may find it easier to do the below steps from the GUI console, But be sure to provide the same values,
 
 ```sh
@@ -173,6 +182,7 @@ aws lambda create-function \
 ```
 
 #### Add Lambda Permissions to receive trigger notifications
+
 ```sh
 aws lambda add-permission \
 --function-name ${funcName} \
@@ -185,6 +195,7 @@ aws lambda add-permission \
 ```
 
 #### Create S3 Notifications to trigger Lambda
+
 ```sh
 # Get the Lambda ARN
 lambda_function_arn=$(aws lambda get-function-configuration \
@@ -206,4 +217,5 @@ aws s3api put-bucket-notification \
 ```
 
 ### Test the function
+
 Go ahead and upload an object to your S3 source bucket and you should be able to find smaller images in the destination bucket after few seconds. _Allow few seconds for the lambda function to run:)_
